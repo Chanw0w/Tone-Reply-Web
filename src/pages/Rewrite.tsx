@@ -3,32 +3,31 @@ import { useAuth } from '../context';
 import { chat } from '../api';
 import { Repeat, Copy, Check } from 'lucide-react';
 
-const styles = ['Confident', 'Witty', 'Romantic', 'Playful', 'Supportive'];
+interface ToneVariation {
+  tone: string;
+  text: string;
+}
 
 export default function RewritePage() {
   const { token } = useAuth();
-  const [conversation, setConversation] = useState('');
-  const [originalReply, setOriginalReply] = useState('');
-  const [style, setStyle] = useState('Witty');
-  const [context, setContext] = useState('');
-  const [result, setResult] = useState('');
+  const [text, setText] = useState('');
+  const [results, setResults] = useState<ToneVariation[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [copied, setCopied] = useState(false);
+  const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
 
   const handleRewrite = async () => {
-    if (!conversation.trim() || !originalReply.trim()) return;
+    if (!text.trim()) return;
     setLoading(true);
     setError('');
-    setResult('');
+    setResults([]);
     try {
-      const res = await chat.rewrite({
-        conversation: conversation.trim(),
-        original_reply: originalReply.trim(),
-        style,
-        context: context.trim() || undefined,
-      }, token!);
-      setResult(res.rewritten_reply || res.reply || res.text || '');
+      const res = await chat.rewrite({ text: text.trim() }, token!);
+      const variations: ToneVariation[] = Object.entries(res).map(([tone, text]) => ({
+        tone: tone.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+        text: text as string,
+      }));
+      setResults(variations);
     } catch (err: any) {
       setError(err.message || 'Failed to rewrite');
     } finally {
@@ -36,10 +35,10 @@ export default function RewritePage() {
     }
   };
 
-  const handleCopy = () => {
-    navigator.clipboard.writeText(result);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  const handleCopy = (text: string, idx: number) => {
+    navigator.clipboard.writeText(text);
+    setCopiedIdx(idx);
+    setTimeout(() => setCopiedIdx(null), 2000);
   };
 
   return (
@@ -47,58 +46,24 @@ export default function RewritePage() {
       <div>
         <h2 style={{ fontSize: 24, fontWeight: 800, letterSpacing: -0.5 }}>Rewrite Reply</h2>
         <p style={{ color: 'var(--text-secondary)', marginTop: 4, fontSize: 14 }}>
-          Transform your draft into a different tone
+          Transform your draft into different tones
         </p>
-      </div>
-
-      <div>
-        <label className="label">Original Conversation</label>
-        <textarea
-          value={conversation}
-          onChange={(e) => setConversation(e.target.value)}
-          placeholder="The conversation context..."
-          rows={3}
-        />
       </div>
 
       <div>
         <label className="label">Your Draft Reply</label>
         <textarea
-          value={originalReply}
-          onChange={(e) => setOriginalReply(e.target.value)}
+          value={text}
+          onChange={(e) => setText(e.target.value)}
           placeholder="What you want to say..."
-          rows={3}
-        />
-      </div>
-
-      <div>
-        <label className="label">Desired Style</label>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-          {styles.map((s) => (
-            <button
-              key={s}
-              className={`chip ${style === s ? 'active' : ''}`}
-              onClick={() => setStyle(s)}
-            >
-              {s}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div>
-        <label className="label">Additional Context (optional)</label>
-        <input
-          value={context}
-          onChange={(e) => setContext(e.target.value)}
-          placeholder="Extra context about the relationship..."
+          rows={4}
         />
       </div>
 
       <button
         className="btn-primary"
         onClick={handleRewrite}
-        disabled={!conversation.trim() || !originalReply.trim() || loading}
+        disabled={!text.trim() || loading}
         style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '14px 24px' }}
       >
         <Repeat size={18} />
@@ -111,19 +76,24 @@ export default function RewritePage() {
         </div>
       )}
 
-      {result && (
-        <div className="card" style={{ position: 'relative' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-            <span className="label" style={{ margin: 0 }}>Rewritten Reply</span>
-            <button
-              className="btn-ghost"
-              onClick={handleCopy}
-              style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12 }}
-            >
-              {copied ? <><Check size={14} /> Copied</> : <><Copy size={14} /> Copy</>}
-            </button>
-          </div>
-          <p style={{ fontSize: 15, lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{result}</p>
+      {results.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <span className="label">Tone Variations</span>
+          {results.map((opt, idx) => (
+            <div key={idx} className="card" style={{ position: 'relative' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--accent)' }}>{opt.tone}</span>
+                <button
+                  className="btn-ghost"
+                  onClick={() => handleCopy(opt.text, idx)}
+                  style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12 }}
+                >
+                  {copiedIdx === idx ? <><Check size={14} /> Copied</> : <><Copy size={14} /> Copy</>}
+                </button>
+              </div>
+              <p style={{ fontSize: 15, lineHeight: 1.6, margin: 0 }}>{opt.text}</p>
+            </div>
+          ))}
         </div>
       )}
     </div>

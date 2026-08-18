@@ -54,23 +54,18 @@ export interface Favorite {
 }
 
 export const chat = {
-  analyze: (conversation: string, token: string) =>
-    apiFetch('/api/chat/analyze', { method: 'POST', body: { conversation }, token }),
+  analyze: (conversation_text: string, token: string) =>
+    apiFetch('/api/chat/analyze', { method: 'POST', body: { conversation_text }, token }),
 
   generate: (params: {
-    conversation: string;
+    conversation_text: string;
     goal: string;
-    style?: string;
-    length?: string;
-    context?: string;
+    length: string;
   }, token: string) =>
     apiFetch('/api/chat/generate', { method: 'POST', body: params, token }),
 
   rewrite: (params: {
-    conversation: string;
-    original_reply: string;
-    style: string;
-    context?: string;
+    text: string;
   }, token: string) =>
     apiFetch('/api/chat/rewrite', { method: 'POST', body: params, token }),
 

@@ -10,36 +10,36 @@ const goals = [
   'Make Plans', 'Be Romantic', 'Be Supportive', 'Be Honest',
 ];
 
-const styles = ['Confident', 'Witty', 'Romantic', 'Playful', 'Supportive'];
-const lengths = ['Short (1-2 sentences)', 'Medium (2-3 sentences)', 'Long (Detailed paragraph)'];
+const lengths = ['Short', 'Medium', 'Long'];
+
+interface GeneratedOption {
+  style: string;
+  text: string;
+}
 
 export default function GeneratePage() {
   const { token } = useAuth();
   const [conversation, setConversation] = useState('');
   const [goal, setGoal] = useState('Flirt');
-  const [style, setStyle] = useState('Confident');
-  const [length, setLength] = useState('Medium (2-3 sentences)');
-  const [context, setContext] = useState('');
-  const [result, setResult] = useState('');
+  const [length, setLength] = useState('Medium');
+  const [results, setResults] = useState<GeneratedOption[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [copied, setCopied] = useState(false);
+  const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
   const [showAdvanced, setShowAdvanced] = useState(false);
 
   const handleGenerate = async () => {
     if (!conversation.trim()) return;
     setLoading(true);
     setError('');
-    setResult('');
+    setResults([]);
     try {
       const res = await chat.generate({
-        conversation: conversation.trim(),
+        conversation_text: conversation.trim(),
         goal,
-        style,
-        length: length.split(' ')[0],
-        context: context.trim() || undefined,
+        length,
       }, token!);
-      setResult(res.reply || res.generated_reply || res.text || '');
+      setResults(res.options || []);
     } catch (err: any) {
       setError(err.message || 'Failed to generate');
     } finally {
@@ -47,10 +47,10 @@ export default function GeneratePage() {
     }
   };
 
-  const handleCopy = () => {
-    navigator.clipboard.writeText(result);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  const handleCopy = (text: string, idx: number) => {
+    navigator.clipboard.writeText(text);
+    setCopiedIdx(idx);
+    setTimeout(() => setCopiedIdx(null), 2000);
   };
 
   return (
@@ -87,21 +87,6 @@ export default function GeneratePage() {
         </div>
       </div>
 
-      <div>
-        <label className="label">Style</label>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-          {styles.map((s) => (
-            <button
-              key={s}
-              className={`chip ${style === s ? 'active' : ''}`}
-              onClick={() => setStyle(s)}
-            >
-              {s}
-            </button>
-          ))}
-        </div>
-      </div>
-
       <button
         className="btn-ghost"
         onClick={() => setShowAdvanced(!showAdvanced)}
@@ -111,31 +96,20 @@ export default function GeneratePage() {
       </button>
 
       {showAdvanced && (
-        <>
-          <div>
-            <label className="label">Length</label>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-              {lengths.map((l) => (
-                <button
-                  key={l}
-                  className={`chip ${length === l ? 'active' : ''}`}
-                  onClick={() => setLength(l)}
-                >
-                  {l}
-                </button>
-              ))}
-            </div>
+        <div>
+          <label className="label">Length</label>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            {lengths.map((l) => (
+              <button
+                key={l}
+                className={`chip ${length === l ? 'active' : ''}`}
+                onClick={() => setLength(l)}
+              >
+                {l}
+              </button>
+            ))}
           </div>
-
-          <div>
-            <label className="label">Additional Context (optional)</label>
-            <input
-              value={context}
-              onChange={(e) => setContext(e.target.value)}
-              placeholder="Any extra context about the relationship..."
-            />
-          </div>
-        </>
+        </div>
       )}
 
       <button
@@ -154,19 +128,24 @@ export default function GeneratePage() {
         </div>
       )}
 
-      {result && (
-        <div className="card" style={{ position: 'relative' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-            <span className="label" style={{ margin: 0 }}>Generated Reply</span>
-            <button
-              className="btn-ghost"
-              onClick={handleCopy}
-              style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12 }}
-            >
-              {copied ? <><Check size={14} /> Copied</> : <><Copy size={14} /> Copy</>}
-            </button>
-          </div>
-          <p style={{ fontSize: 15, lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{result}</p>
+      {results.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <span className="label">Generated Options</span>
+          {results.map((opt, idx) => (
+            <div key={idx} className="card" style={{ position: 'relative' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--accent)' }}>{opt.style}</span>
+                <button
+                  className="btn-ghost"
+                  onClick={() => handleCopy(opt.text, idx)}
+                  style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12 }}
+                >
+                  {copiedIdx === idx ? <><Check size={14} /> Copied</> : <><Copy size={14} /> Copy</>}
+                </button>
+              </div>
+              <p style={{ fontSize: 15, lineHeight: 1.6, margin: 0 }}>{opt.text}</p>
+            </div>
+          ))}
         </div>
       )}
     </div>

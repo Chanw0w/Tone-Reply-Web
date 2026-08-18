@@ -27,13 +27,12 @@ export default function CoachPage() {
     setAdvice('');
     try {
       const res = await chat.generate({
-        conversation: `Coach question: ${question.trim()}`,
+        conversation_text: `Coach question: ${question.trim()}`,
         goal: 'Be Supportive',
-        style: 'Supportive',
         length: 'Long',
-        context: selectedTopic ? `Topic: ${topics.find(t => t.id === selectedTopic)?.label}` : undefined,
       }, token!);
-      setAdvice(res.reply || res.generated_reply || res.text || '');
+      const firstOption = res.options?.[0];
+      setAdvice(firstOption?.text || res.reply || res.text || '');
     } catch (err: any) {
       setError(err.message || 'Failed to get advice');
     } finally {
